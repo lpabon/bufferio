@@ -158,6 +158,50 @@ func TestWriteAt(t *testing.T) {
 	assert(t, err == ErrOverrun)
 }
 
+func TestWrite(t *testing.T) {
+	var n int
+	var err error
+
+	segments := 11
+	bytes := len(big) * segments
+	bio := NewBufferIOMake(bytes)
+
+	// Write all but one segment
+	for s := 0; s < (segments - 1); s++ {
+		n, err = bio.Write(big)
+		assert(t, n == len(big))
+		assert(t, err == nil)
+		assert(t, bio.off == int64(len(big)*(1+s)))
+
+		// Check that each segment is written correctly
+		// and not overwritten
+		for checksegment := 0; checksegment <= s; checksegment++ {
+			for i := 0; i < len(big); i++ {
+				assert(t, bio.buf[i+(len(big)*checksegment)] == big[i])
+			}
+		}
+		assert(t, bio.buf[bio.off] == 0)
+	}
+
+	// Now write something smaller
+	n, err = bio.Write(src)
+	assert(t, n == len(src))
+	assert(t, err == nil)
+	assert(t, bio.off == int64(len(big)*10+len(src)))
+
+	// Write big again
+	n, err = bio.Write(big)
+	assert(t, n == (len(big)-len(src)))
+	assert(t, err == nil)
+	assert(t, bio.off == int64(len(bio.buf)))
+
+	// Write again, we should be at the end
+	n, err = bio.Write(big)
+	assert(t, n == 0)
+	assert(t, err == ErrOverrun)
+	assert(t, bio.off == int64(len(bio.buf)))
+}
+
 func TestReadAt(t *testing.T) {
 	bio := NewBufferIO(big)
 	buf := make([]byte, 10)
