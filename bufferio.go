@@ -99,7 +99,7 @@ func (b *BufferIO) Seek(offset int64, whence int) (int64, error) {
 	case os.SEEK_CUR:
 		position = b.off + offset
 	case os.SEEK_END:
-		return 0, ErrOverrun
+		position = b.Size() + offset
 	default:
 		return 0, errors.New("invalid whence")
 	}

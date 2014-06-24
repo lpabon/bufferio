@@ -5,12 +5,10 @@
 package bufferio
 
 import (
-	//"bytes"
-	//"io"
-	"math"
-	"reflect"
-	//"strings"
 	"encoding/binary"
+	"math"
+	"os"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -202,6 +200,34 @@ func TestWrite(t *testing.T) {
 	assert(t, bio.off == int64(len(bio.buf)))
 }
 
+func TestRead(t *testing.T) {
+	var n int
+	var err error
+
+	bio := NewBufferIO(big)
+
+	rbig0 := make([]byte, len(big)/2)
+	rbig1 := make([]byte, len(big)-len(big)/2)
+
+	n, err = bio.Read(rbig0)
+	assert(t, n == len(rbig0))
+	assert(t, err == nil)
+	for i := 0; i < len(rbig0); i++ {
+		assert(t, rbig0[i] == big[i])
+	}
+
+	n, err = bio.Read(rbig1)
+	assert(t, n == len(rbig1))
+	assert(t, err == nil)
+	for i := 0; i < len(rbig1); i++ {
+		assert(t, rbig1[i] == big[i+len(big)/2])
+	}
+
+	n, err = bio.Read(rbig1)
+	assert(t, n == 0)
+	assert(t, err == ErrEOF)
+}
+
 func TestReadAt(t *testing.T) {
 	bio := NewBufferIO(big)
 	buf := make([]byte, 10)
@@ -227,6 +253,60 @@ func TestReadAt(t *testing.T) {
 	n, err = bio.ReadAt(buf, int64(len(big)+1))
 	assert(t, n == 0)
 	assert(t, err == ErrEOF)
+}
+
+func TestSeek(t *testing.T) {
+	var n int
+	var offset int64
+	var err error
+
+	bio := NewBufferIO(big)
+
+	rbig0 := make([]byte, len(big)/2)
+	//rbig1 := make([]byte, len(big)-len(big)/2)
+	rtiny := make([]byte, 4)
+
+	// Read the buffer which moves the offset
+	n, err = bio.Read(rbig0)
+	assert(t, n == len(rbig0))
+	assert(t, err == nil)
+	for i := 0; i < len(rbig0); i++ {
+		assert(t, rbig0[i] == big[i])
+	}
+
+	// Read it again
+	offset, err = bio.Seek(0, os.SEEK_SET)
+	assert(t, offset == int64(0))
+	assert(t, err == nil)
+	n, err = bio.Read(rbig0)
+	assert(t, n == len(rbig0))
+	assert(t, err == nil)
+	for i := 0; i < len(rbig0); i++ {
+		assert(t, rbig0[i] == big[i])
+	}
+
+	// Read it 4 bytes in from the current
+	// position
+	offset, err = bio.Seek(4, os.SEEK_CUR)
+	assert(t, offset == int64(len(rbig0)+4))
+	assert(t, err == nil)
+	n, err = bio.Read(rtiny)
+	assert(t, n == len(rtiny))
+	assert(t, err == nil)
+	for i := 0; i < len(rtiny); i++ {
+		assert(t, rtiny[i] == big[i+len(rbig0)+4])
+	}
+
+	// Now move to four bytes from the end
+	offset, err = bio.Seek(-4, os.SEEK_END)
+	assert(t, offset == int64(len(bio.buf)-4))
+	assert(t, err == nil)
+	n, err = bio.Read(rtiny)
+	assert(t, n == len(rtiny))
+	assert(t, err == nil)
+	for i := 0; i < len(rtiny); i++ {
+		assert(t, rtiny[i] == big[i+len(big)-4])
+	}
 }
 
 // --- Test XXData Calls ---
