@@ -263,7 +263,6 @@ func TestSeek(t *testing.T) {
 	bio := NewBufferIO(big)
 
 	rbig0 := make([]byte, len(big)/2)
-	//rbig1 := make([]byte, len(big)-len(big)/2)
 	rtiny := make([]byte, 4)
 
 	// Read the buffer which moves the offset
